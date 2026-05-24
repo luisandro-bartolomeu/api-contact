@@ -14,6 +14,7 @@ import java.util.List;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
@@ -50,5 +51,33 @@ class SecurityIntegrationTest {
 
         mockMvc.perform(get("/api/contacts").with(httpBasic("admin", "admin123")))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    void shouldExposeHealthEndpointWithoutAuthentication() throws Exception {
+        mockMvc.perform(get("/actuator/health"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("UP"));
+    }
+
+    @Test
+    void shouldExposeInfoEndpointWithoutAuthentication() throws Exception {
+        mockMvc.perform(get("/actuator/info"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.app.name").value("api-contacts"));
+    }
+
+    @Test
+    void shouldProtectMetricsEndpointWithoutAuthentication() throws Exception {
+        mockMvc.perform(get("/actuator/metrics"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void shouldExposeMetricsEndpointWithBasicAuthentication() throws Exception {
+        mockMvc.perform(get("/actuator/metrics").with(httpBasic("admin", "admin123")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.names").isArray())
+                .andExpect(jsonPath("$.names").isNotEmpty());
     }
 }
