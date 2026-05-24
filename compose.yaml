@@ -1,1 +1,29 @@
-services: {}
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: contactos-app
+    depends_on:
+      - postgres
+    env_file:
+      - .env
+    ports:
+      - "${SERVER_PORT:-8080}:8080"
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: contactos-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-contactos}
+      POSTGRES_USER: ${POSTGRES_USER:-contactos}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-contactos}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

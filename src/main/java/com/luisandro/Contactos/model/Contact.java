@@ -1,10 +1,5 @@
 package com.luisandro.Contactos.model;
 
-
-
-import java.util.UUID;
-
-
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -15,22 +10,19 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 
-@Data // Gera getters, setters, toString, equals, hashCode
-@NoArgsConstructor // Gera um construtor sem argumentos
-@AllArgsConstructor
+import java.util.UUID;
+
 @Entity
 @Table(name = "contacts")
 public class Contact {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID uuid;
-    
+
     @NotBlank(message = "Name is mandatory")
     @Size(max = 100, message = "Name must be less than 100 characters")
     @Column(nullable = false, length = 100)
@@ -48,5 +40,65 @@ public class Contact {
 
     @Size(max = 255)
     @Column(length = 255)
-    private String address;   
+    private String address;
+
+    public Contact() {
+    }
+
+    public Contact(Long id, UUID uuid, String name, String email, String phone, String address) {
+        this.id = id;
+        this.uuid = uuid;
+        this.name = name;
+        this.email = email;
+        this.phone = phone;
+        this.address = address;
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public UUID getUuid() {
+        return uuid;
+    }
+
+    public void setUuid(UUID uuid) {
+        this.uuid = uuid;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public String getPhone() {
+        return phone;
+    }
+
+    public void setPhone(String phone) {
+        this.phone = phone;
+    }
+
+    public String getAddress() {
+        return address;
+    }
+
+    public void setAddress(String address) {
+        this.address = address;
+    }
 }

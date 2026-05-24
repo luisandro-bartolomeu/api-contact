@@ -1,14 +1,13 @@
 package com.luisandro.Contactos.security.config;
 
-
-
 import com.luisandro.Contactos.security.jwt.JwtAuthenticationFilter;
 import com.luisandro.Contactos.security.user.UserDetailsServiceImpl;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -18,74 +17,68 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.servlet.util.matcher.MvcRequestMatcher;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+import org.springframework.web.servlet.handler.HandlerMappingIntrospector;
 
 @Configuration
 @EnableWebSecurity
-@EnableMethodSecurity(prePostEnabled = true)  // Permite anotações como @PreAuthorize
-@RequiredArgsConstructor
+@EnableMethodSecurity(prePostEnabled = true)
 public class SecurityConfig {
 
     private final UserDetailsServiceImpl userDetailsService;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
-    // 1. Configura QUAL tipo de autenticação usar para cada endpoint
+    @Value("${security.basic.enabled:true}")
+    private boolean basicAuthEnabled;
+
+    public SecurityConfig(UserDetailsServiceImpl userDetailsService, JwtAuthenticationFilter jwtAuthenticationFilter) {
+        this.userDetailsService = userDetailsService;
+        this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+    }
+
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http, HandlerMappingIntrospector introspector) throws Exception {
+        MvcRequestMatcher.Builder mvc = new MvcRequestMatcher.Builder(introspector);
+
         http
-                // Desabilita CSRF (não necessário para APIs REST)
                 .csrf(csrf -> csrf.disable())
-
-                // Configura política de sessão: STATELESS (não guarda sessão no servidor)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-
-                // Configura quais endpoints são públicos e quais exigem autenticação
+                .authenticationProvider(authenticationProvider())
                 .authorizeHttpRequests(auth -> auth
-                        // Endpoints públicos (não precisam de autenticação)
-                        .requestMatchers("/auth/**").permitAll()           // Login, registro
-                        .requestMatchers("/h2-console/**").permitAll()     // Console do banco
-                        .requestMatchers("/swagger-ui/**").permitAll()     // Documentação
-                        .requestMatchers("/api-docs/**").permitAll()       // Documentação
-
-                        // Endpoints que exigem autenticação (qualquer usuário logado)
-                        .requestMatchers("/api/contacts/**").authenticated()
-
-                        // Endpoints específicos para ADMIN
-                        .requestMatchers("/admin/**").hasRole("ADMIN")
-
-                        // Qualquer outra requisição precisa autenticação
+                        .requestMatchers(new AntPathRequestMatcher("/h2-console/**")).permitAll()
+                        .requestMatchers(mvc.pattern("/auth/**")).permitAll()
+                        .requestMatchers(mvc.pattern("/swagger-ui.html")).permitAll()
+                        .requestMatchers(mvc.pattern("/swagger-ui/**")).permitAll()
+                        .requestMatchers(mvc.pattern("/api-docs/**")).permitAll()
+                        .requestMatchers(mvc.pattern("/swagger-resources/**")).permitAll()
+                        .requestMatchers(mvc.pattern("/api/contacts/**")).authenticated()
+                        .requestMatchers(mvc.pattern("/admin/**")).hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
+                .headers(headers -> headers.frameOptions(frame -> frame.disable()));
 
-                // Configura Basic Authentication (opcional - HABILITADO)
-                .httpBasic(httpBasic -> {})
+        if (basicAuthEnabled) {
+            http.httpBasic(Customizer.withDefaults());
+        }
 
-                // Configura OAuth2 Login
-                .oauth2Login(oauth2 -> oauth2
-                        .defaultSuccessUrl("/oauth2/success", true)
-                );
-
-        // Adiciona o filtro JWT ANTES do filtro padrão do UsernamePassword
         http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
-
         return http.build();
     }
 
-    // 2. Configura como o Spring Security busca o usuário
     @Bean
     public DaoAuthenticationProvider authenticationProvider() {
         DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
-        authProvider.setUserDetailsService(userDetailsService);  // Onde buscar usuários
-        authProvider.setPasswordEncoder(passwordEncoder());      // Como comparar senhas
+        authProvider.setUserDetailsService(userDetailsService);
+        authProvider.setPasswordEncoder(passwordEncoder());
         return authProvider;
     }
 
-    // 3. Gerencia a autenticação (quem está tentando logar)
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration authConfig) throws Exception {
         return authConfig.getAuthenticationManager();
     }
 
-    // 4. Criptografa senhas (BCrypt é seguro e lento de propósito)
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();

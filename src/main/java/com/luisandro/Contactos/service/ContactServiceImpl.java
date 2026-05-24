@@ -5,39 +5,36 @@ import com.luisandro.Contactos.dto.ContactResponseDTO;
 import com.luisandro.Contactos.exception.ResourceNotFoundException;
 import com.luisandro.Contactos.model.Contact;
 import com.luisandro.Contactos.repository.ContactRepository;
-import jakarta.transaction.TransactionScoped;
 import jakarta.transaction.Transactional;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
 @Transactional
 public class ContactServiceImpl implements ContactService {
 
     private final ContactRepository contactRepository;
 
+    public ContactServiceImpl(ContactRepository contactRepository) {
+        this.contactRepository = contactRepository;
+    }
+
     @Override
     public ContactResponseDTO createContact(ContactRequestDTO contactRequest) {
-        // Verificar se email já existe
         if (contactRepository.existsByEmail(contactRequest.getEmail())) {
             throw new RuntimeException("Email already exists: " + contactRequest.getEmail());
         }
 
-        Contact contact = mapToEntity(contactRequest);
-        Contact savedContact = contactRepository.save(contact);
+        Contact savedContact = contactRepository.save(mapToEntity(contactRequest));
         return mapToDTO(savedContact);
     }
 
     @Override
     public List<ContactResponseDTO> getAllContacts() {
-        return contactRepository.findAll()
-                .stream()
+        return contactRepository.findAll().stream()
                 .map(this::mapToDTO)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
@@ -52,9 +49,8 @@ public class ContactServiceImpl implements ContactService {
         Contact contact = contactRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Contact not found with id: " + id));
 
-        // Verificar se email já existe para outro contato
-        if (!contact.getEmail().equals(contactRequest.getEmail()) &&
-                contactRepository.existsByEmail(contactRequest.getEmail())) {
+        if (!contact.getEmail().equals(contactRequest.getEmail())
+                && contactRepository.existsByEmail(contactRequest.getEmail())) {
             throw new RuntimeException("Email already exists: " + contactRequest.getEmail());
         }
 
@@ -77,10 +73,9 @@ public class ContactServiceImpl implements ContactService {
 
     @Override
     public List<ContactResponseDTO> searchContactsByName(String name) {
-        return contactRepository.findByNameContainingIgnoreCase(name)
-                .stream()
+        return contactRepository.findByNameContainingIgnoreCase(name).stream()
                 .map(this::mapToDTO)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
